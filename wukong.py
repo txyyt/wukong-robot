@@ -6,12 +6,15 @@ import fire
 import signal
 import hashlib
 import urllib3
+import pvporcupine
+import pyaudio
+import struct
 
 from robot.Updater import Updater
 from robot.Conversation import Conversation
 from robot.LifeCycleHandler import LifeCycleHandler
 
-from robot import config, utils, constants, logging, detector
+from robot import config, utils, constants, logging
 
 from server import server
 from tools import make_json, solr_tools
@@ -42,18 +45,19 @@ class Wukong(object):
 
             后台管理端：http://{}:{}
             如需退出，可以按 Ctrl-4 组合键
+            http://127.0.0.1:5001/
 
 """.format(
                 utils.get_file_content(
                     os.path.join(constants.APP_PATH, "VERSION"), "r"
                 ).strip(),
-                config.get("/server/host", "0.0.0.0"),
+                config.get("/server/host", "127.0.0.1"),
                 config.get("/server/port", "5001"),
             )
         )
 
         self.conversation = Conversation(self._profiling)
-        self.conversation.say(f"{config.get('first_name', '主人')} 你好！试试对我喊唤醒词叫醒我吧", True)
+        self.conversation.say(f"{config.get('first_name', '主人')} 我是小K，试试对我喊唤醒词叫醒我吧！", True)
         self.lifeCycleHandler = LifeCycleHandler(self.conversation)
         self.lifeCycleHandler.onInit()
 
@@ -62,27 +66,33 @@ class Wukong(object):
         utils.clean()
         self.lifeCycleHandler.onKilled()
 
-    def _detected_callback(self, is_snowboy=True):
-        def _start_record():
-            logger.info("开始录音")
-            self.conversation.isRecording = True
-            utils.setRecordable(True)
+    def detect_wake_word(self):
+        access_key = "M4RYbRUgyDKiXOL19AjJkuGOSouZRpHSq3guDW5bPb1ktAGh1pBnuQ=="  # 替换为你的 Porcupine access key
+        porcupine = pvporcupine.create(access_key=access_key, keywords=["picovoice", "bumblebee"])
+        pa = pyaudio.PyAudio()
 
-        if not utils.is_proper_time():
-            logger.warning("勿扰模式开启中")
-            return
-        if self.conversation.isRecording:
-            logger.warning("正在录音中，跳过")
-            return
-        if is_snowboy:
-            self.conversation.interrupt()
-            utils.setRecordable(False)
-        self.lifeCycleHandler.onWakeup()
-        if is_snowboy:
-            _start_record()
+        audio_stream = pa.open(
+            rate=porcupine.sample_rate,
+            channels=1,
+            format=pyaudio.paInt16,
+            input=True,
+            frames_per_buffer=porcupine.frame_length
+        )
 
-    def _interrupt_callback(self):
-        return self._interrupted
+        while True:
+            pcm = audio_stream.read(porcupine.frame_length)
+            pcm = struct.unpack_from("h" * porcupine.frame_length, pcm)
+
+            keyword_index = porcupine.process(pcm)
+            if keyword_index >= 0:
+                print("Wake word detected!")
+                self.conversation.interrupt()
+                utils.setRecordable(False)
+                self.lifeCycleHandler.onWakeup()
+                break
+
+        audio_stream.close()
+        pa.terminate()
 
     def run(self):
         self.init()
@@ -92,7 +102,7 @@ class Wukong(object):
         server.run(self.conversation, self, debug=self._debug)
         try:
             # 初始化离线唤醒
-            detector.initDetector(self)
+            self.detect_wake_word()
         except AttributeError:
             logger.error("初始化离线唤醒功能失败", stack_info=True)
             pass

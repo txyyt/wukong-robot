@@ -60,11 +60,12 @@ def doInit(config_file=constants.getDefaultConfigPath()):
     # Read config
     logger.debug("Trying to read config file: '%s'", config_file)
     try:
-        with open(config_file, "r") as f:
+        with open(config_file, "r", encoding="utf-8") as f:  # 指定编码为 utf-8
             _config = yaml.safe_load(f)
     except Exception as e:
         logger.error(f"配置文件 {config_file} 读取失败: {e}", stack_info=True)
         raise
+
 
 
 def get_path(items, default=None, warn=False):

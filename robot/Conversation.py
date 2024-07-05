@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import struct
 import time
 import uuid
 import cProfile
@@ -11,7 +12,10 @@ import traceback
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from snowboy import snowboydecoder
+import pvporcupine
+import pyaudio
+
+#from snowboy import snowboydecoder
 
 from robot.LifeCycleHandler import LifeCycleHandler
 from robot.Brain import Brain
@@ -220,17 +224,25 @@ class Conversation(object):
     def doConverse(self, fp, callback=None, onSay=None, onStream=None):
         self.interrupt()
         try:
+            if not os.path.exists(fp):
+                raise FileNotFoundError(f"{fp} 文件不存在")
             query = self.asr.transcribe(fp)
-        except Exception as e:
-            logger.critical(f"ASR识别失败：{e}", stack_info=True)
-            traceback.print_exc()
-        utils.check_and_delete(fp)
-        try:
+            utils.check_and_delete(fp)
+
+            if not query:
+                raise ValueError("ASR识别失败，没有识别到任何内容")
+
             self.doResponse(query, callback, onSay, onStream)
+        except FileNotFoundError as fnf_error:
+            logger.critical(f"文件未找到：{fnf_error}", stack_info=True)
         except Exception as e:
-            logger.critical(f"回复失败：{e}", stack_info=True)
+            logger.critical(f"处理失败：{e}", stack_info=True)
             traceback.print_exc()
-        utils.clean()
+            if 'query' not in locals():
+                query = ""
+            self.doResponse(query, callback, onSay, onStream)
+        finally:
+            utils.clean()
 
     def appendHistory(self, t, text, UUID="", plugin=""):
         """将会话历史加进历史记录"""
@@ -419,15 +431,38 @@ class Conversation(object):
         try:
             if not silent:
                 self.lifeCycleHandler.onWakeup()
-            listener = snowboydecoder.ActiveListener(
-                [constants.getHotwordModel(config.get("hotword", "wukong.pmdl"))]
+
+            porcupine = pvporcupine.create(keywords=["picovoice", "bumblebee"])
+            pa = pyaudio.PyAudio()
+
+            audio_stream = pa.open(
+                rate=porcupine.sample_rate,
+                channels=1,
+                format=pyaudio.paInt16,
+                input=True,
+                frames_per_buffer=porcupine.frame_length
             )
+
+            while True:
+                pcm = audio_stream.read(porcupine.frame_length)
+                pcm = struct.unpack_from("h" * porcupine.frame_length, pcm)
+
+                keyword_index = porcupine.process(pcm)
+                if keyword_index >= 0:
+                    logger.info("Wake word detected!")
+                    break
+
+            audio_stream.close()
+            pa.terminate()
+
+            if not silent:
+                self.lifeCycleHandler.onThink()
+
+            listener = porcupine  # 替换为Porcupine
             voice = listener.listen(
                 silent_count_threshold=config.get("silent_threshold", 15),
                 recording_timeout=config.get("recording_timeout", 5) * 4,
             )
-            if not silent:
-                self.lifeCycleHandler.onThink()
             if voice:
                 query = self.asr.transcribe(voice)
                 utils.check_and_delete(voice)

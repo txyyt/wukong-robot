@@ -107,12 +107,39 @@ class SoxPlayer(AbstractPlayer):
                         self.executeOnCompleted, res, onCompleted
                     )
 
+    # def doPlay(self, src):
+    #     system = platform.system()
+    #     if system == "Darwin":
+    #         cmd = ["afplay", str(src)]
+    #     else:
+    #         cmd = ["play", str(src)]
+    #     logger.debug("Executing %s", " ".join(cmd))
+    #     self.proc = subprocess.Popen(
+    #         cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    #     )
+    #     self.playing = True
+    #     self.proc.wait()
+    #     self.playing = False
+    #     if self.delete:
+    #         utils.check_and_delete(src)
+    #     logger.info(f"播放完成：{src}")
+    #     return self.proc and self.proc.returncode == 0
+# 您的原始 doPlay 方法是使用系统默认的音频播放器进行播放：
+#
+# 对于 macOS 系统 (Darwin)，它使用的是 afplay。
+# 对于其他系统（例如 Linux），它使用的是 play。
+# 在 Windows 系统中，通常没有预装的 afplay 或 play 命令。因此，我们可以将它修改为使用 ffmpeg 播放音频文件。
+#
+# 请将 doPlay 方法修改为以下内容，以便在 Windows 系统中使用 ffmpeg 播放音频：
     def doPlay(self, src):
         system = platform.system()
         if system == "Darwin":
             cmd = ["afplay", str(src)]
+        elif system == "Windows":
+            cmd = ["ffplay", "-nodisp", "-autoexit", str(src)]
         else:
             cmd = ["play", str(src)]
+
         logger.debug("Executing %s", " ".join(cmd))
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

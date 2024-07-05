@@ -40,8 +40,9 @@ def tail(filepath, n=10):
                 page_n -= 1
 
     for line in lines[:n][::-1]:
-        res += line.decode("utf-8")
+        res += line.decode("utf-8", errors='ignore')  # 忽略解码错误
     return res
+
 
 
 def getLogger(name):

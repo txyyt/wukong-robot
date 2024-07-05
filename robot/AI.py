@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
 import os
-import json
 import random
 import requests
+import json
+import time
+import hashlib
+import base64
+import logging
 
+from sparkai.llm.llm import ChunkPrintHandler
+from sparkai.llm.llm import ChatSparkLLM
+from sparkai.core.messages import ChatMessage
 from uuid import getnode as get_mac
 from abc import ABCMeta, abstractmethod
 from robot import logging, config, utils
@@ -415,6 +422,84 @@ class OPENAIRobot(AbstractRobot):
                 "openai robot failed to response for %r", msg, exc_info=True
             )
             return "抱歉，OpenAI 回答失败"
+
+
+class SparkRobot(AbstractRobot):
+
+    SLUG = "spark"
+
+    def __init__(self, spark_api_url, spark_app_id, spark_api_key, spark_api_secret, spark_llm_domain):
+        """
+        讯飞星火大模型
+        """
+        super(self.__class__, self).__init__()
+        self.spark = ChatSparkLLM(
+            spark_api_url=spark_api_url,
+            spark_app_id=spark_app_id,
+            spark_api_key=spark_api_key,
+            spark_api_secret=spark_api_secret,
+            spark_llm_domain=spark_llm_domain,
+            streaming=False,
+        )
+        self.context = []  # 用于保存对话上下文
+
+    @classmethod
+    def get_config(cls):
+        return config.get("spark", {})
+
+    def chat(self, texts, parsed=None):
+        msg = "".join(texts)
+        msg = utils.stripPunctuation(msg)
+        try:
+            # 定制身份和回答习惯
+            if not self.context:
+                system_message = ChatMessage(
+                    role="system",
+                    content="你现在是一名智能教育机器人AI，你的名字是小K，这个机器人面向的对象是幼儿园及小学低年级的幼儿，语言要风趣温柔。"
+                )
+                self.context.append(system_message)
+
+            user_message = ChatMessage(role="user", content=msg)
+            self.context.append(user_message)
+
+            # 确保上下文不超出限制
+            while self.calculate_total_tokens(self.context) > 8192:
+                self.context.pop(1)  # 移除最早的用户消息，保留系统消息
+
+            handler = ChunkPrintHandler()
+            response = self.spark.generate([self.context], callbacks=[handler])
+
+            logger.info(f"Raw response: {response}")
+
+            # 正确解析生成的文本
+            result = ""
+            if hasattr(response, 'generations') and response.generations:
+                for generation in response.generations[0]:
+                    result += generation.text
+                    # 将模型的回答也加入上下文
+                    assistant_message = ChatMessage(role="assistant", content=generation.text)
+                    self.context.append(assistant_message)
+            result = result if result else '抱歉, 星火大模型服务回答失败'
+
+            logger.info(f"{self.SLUG} 回答：{result}")
+            return result
+        except Exception as e:
+            logger.critical(f"Spark robot failed to respond for '{msg}'", exc_info=True)
+            return "抱歉, 星火大模型服务回答失败"
+
+    def calculate_total_tokens(self, messages):
+        total_tokens = 0
+        for message in messages:
+            total_tokens += len(message.content)
+        return total_tokens
+
+# 配置文件示例（config.yml）
+# spark:
+#   spark_api_url: 'wss://spark-api.xf-yun.com/v3.5/chat'
+#   spark_app_id: 'your_app_id'
+#   spark_api_key: 'your_api_key'
+#   spark_api_secret: 'your_api_secret'
+#   spark_llm_domain: 'generalv3.5'
 
 
 def get_unknown_response():

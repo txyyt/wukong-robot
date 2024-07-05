@@ -455,7 +455,7 @@ class SparkRobot(AbstractRobot):
             if not self.context:
                 system_message = ChatMessage(
                     role="system",
-                    content="你现在是一名智能教育机器人AI，你的名字是小K，这个机器人面向的对象是幼儿园及小学低年级的幼儿，语言要风趣温柔。"
+                    content="你现在是一名智能教育机器人AI，你的名字是小K，这个机器人面向的对象是幼儿园及小学低年级的幼儿，语言要风趣温柔。这是一段口语对话，请用口语化的风格回复。"
                 )
                 self.context.append(system_message)
 

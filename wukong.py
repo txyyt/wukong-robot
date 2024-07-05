@@ -68,7 +68,7 @@ class Wukong(object):
 
     def detect_wake_word(self):
         access_key = "M4RYbRUgyDKiXOL19AjJkuGOSouZRpHSq3guDW5bPb1ktAGh1pBnuQ=="  # 替换为你的 Porcupine access key
-        porcupine = pvporcupine.create(access_key=access_key, keywords=["picovoice", "bumblebee"])
+        porcupine = pvporcupine.create(access_key=access_key, keywords=["picovoice", "bumblebee", "hey siri"])
         pa = pyaudio.PyAudio()
 
         audio_stream = pa.open(
@@ -196,6 +196,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         wukong = Wukong()
         wukong.run()
+        wukong.conversation.activeListen()  # 添加这一行，进入主动聆听模式
     elif "-h" in (sys.argv):
         wukong = Wukong()
         wukong.help()

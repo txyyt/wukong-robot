@@ -197,7 +197,10 @@ class Conversation(object):
                 "/unit/secret_key", "KffXwW6E1alcGplcabcNs63Li6GvvnfL"
             ),
         }
-        return self.nlu.parse(query, **args)
+        logger.info(f"调用 NLU 解析: {query}")
+        parsed_result = self.nlu.parse(query, **args)
+        logger.info(f"NLU 解析结果: {parsed_result}")
+        return parsed_result
 
     def setImmersiveMode(self, slug):
         self.immersiveMode = slug
@@ -421,8 +424,9 @@ class Conversation(object):
 
         logger.info(f"即将朗读语音：{msg}")
         lines = re.split("。|！|？|\!|\?|\n", msg)
-        if onCompleted is None:
-            onCompleted = lambda: self.checkRestoreAndListen()
+        # 这里唤醒循环对话
+        # if onCompleted is None:
+        #     onCompleted = lambda: self.checkRestoreAndListen()
         self.tts_index = 0
         self.tts_count = len(lines)
         logger.debug(f"tts_count: {self.tts_count}")

@@ -51,23 +51,34 @@ def getUnit(query, service_id, api_key, secret_key):
     :returns: UNIT 解析结果。如果解析失败，返回 None
     """
     access_token = get_token(api_key, secret_key)
-    url = (
-        "https://aip.baidubce.com/rpc/2.0/unit/service/chat?access_token="
-        + access_token
-    )
-    request = {"query": query, "user_id": str(get_mac())[:32]}
-    body = {
+    if not access_token:
+        logger.error("无法获取有效的Access Token")
+        return None
+
+    url = f"https://aip.baidubce.com/rpc/2.0/unit/service/chat?access_token={access_token}"
+    request_body = {
         "log_id": str(uuid.uuid1()),
         "version": "2.0",
         "service_id": service_id,
         "session_id": str(uuid.uuid1()),
-        "request": request,
+        "request": {
+            "query": query,
+            "user_id": str(uuid.uuid1())[:32]
+        }
     }
+
     try:
         headers = {"Content-Type": "application/json"}
-        request = requests.post(url, json=body, headers=headers)
-        return json.loads(request.text)
-    except Exception:
+        response = requests.post(url, json=request_body, headers=headers)
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"UNIT 响应: {result}")
+            return result
+        else:
+            logger.error(f"UNIT API 请求失败，状态码：{response.status_code}, 响应内容：{response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"UNIT API 请求时出错：{e}")
         return None
 
 

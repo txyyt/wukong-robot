@@ -121,15 +121,15 @@ class UnitNLU(AbstractNLU):
         :returns: UNIT 解析结果。如果解析失败，返回 None
         """
         if (
-            "service_id" not in args
-            or "api_key" not in args
-            or "secret_key" not in args
+                "service_id" not in args
+                or "api_key" not in args
+                or "secret_key" not in args
         ):
             logger.critical(f"{self.SLUG} NLU 失败：参数错误！", stack_info=True)
             return None
-        return unit.getUnit(
-            query, args["service_id"], args["api_key"], args["secret_key"]
-        )
+        result = unit.getUnit(query, args["service_id"], args["api_key"], args["secret_key"])
+        logger.info(f"UNIT 解析结果: {result}")
+        return result
 
     def getIntent(self, parsed):
         """

@@ -95,6 +95,7 @@ class Wukong(object):
             # 初始化离线唤醒
             # 进入config文件输入porcupine的Access Key
             # 然后上官网训练，下载文件保存到.wukong目录，在config文件里改文件路径
+            # 模型文件在https://github.com/Picovoice/porcupine/tree/master/lib/common下载
             detector.initDetector(self)
         except AttributeError:
             logger.error("初始化离线唤醒功能失败", stack_info=True)

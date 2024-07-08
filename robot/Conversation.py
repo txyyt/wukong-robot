@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import struct
+import audioop
 import time
 import uuid
 import cProfile
@@ -13,10 +13,7 @@ import wave
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import pvporcupine
 import pyaudio
-
-#from snowboy import snowboydecoder
 
 from robot.LifeCycleHandler import LifeCycleHandler
 from robot.Brain import Brain
@@ -74,6 +71,7 @@ class Conversation(object):
                 logger.info(f"第{index}段TTS命中缓存，播放缓存语音")
                 voice = utils.getCache(msg)
                 while index != self.tts_index:
+                    # 阻塞直到轮到这个音频播放
                     continue
                 with self.play_lock:
                     self.player.play(
@@ -88,6 +86,7 @@ class Conversation(object):
                     voice = self.tts.get_speech(msg)
                     logger.info(f"第{index}段TTS合成成功。msg: {msg}")
                     while index != self.tts_index:
+                        # 阻塞直到轮到这个音频播放
                         continue
                     with self.play_lock:
                         logger.info(f"即将播放第{index}段TTS。msg: {msg}")
@@ -116,8 +115,8 @@ class Conversation(object):
     def reInit(self):
         """重新初始化"""
         try:
-            self.asr = ASR.get_engine_by_slug(config.get("asr_engine", "xunfei-asr"))
-            self.ai = AI.get_robot_by_slug(config.get("robot", "spark"))
+            self.asr = ASR.get_engine_by_slug(config.get("asr_engine", "tencent-asr"))
+            self.ai = AI.get_robot_by_slug(config.get("robot", "tuling"))
             self.tts = TTS.get_engine_by_slug(config.get("tts_engine", "baidu-tts"))
             self.nlu = NLU.get_engine_by_slug(config.get("nlu_engine", "unit"))
             self.player = Player.SoxPlayer()
@@ -168,26 +167,22 @@ class Conversation(object):
                 self.player.stop()
             else:
                 # 没命中技能，使用机器人回复
-                if self.ai.SLUG == "spark":
-                    msg = self.ai.chat(query, parsed)
-                    self.say(msg, True, onCompleted=self.checkRestoreAndListen)
+                if self.ai.SLUG == "openai":
+                    stream = self.ai.stream_chat(query)
+                    self.stream_say(stream, True, onCompleted=self.checkRestore)
                 else:
                     msg = self.ai.chat(query, parsed)
-                    self.say(msg, True, onCompleted=self.checkRestoreAndListen)
+                    self.say(msg, True, onCompleted=self.checkRestore)
         else:
             # 命中技能
             if lastImmersiveMode and lastImmersiveMode != self.matchPlugin:
                 if self.player:
                     if self.player.is_playing():
                         logger.debug("等说完再checkRestore")
-                        self.player.appendOnCompleted(lambda: self.checkRestoreAndListen())
-                    else:
-                        logger.debug("checkRestore")
-                        self.checkRestoreAndListen()
-
-    def checkRestoreAndListen(self):
-        self.checkRestore()
-        self.activeListen()
+                        self.player.appendOnCompleted(lambda: self.checkRestore())
+                else:
+                    logger.debug("checkRestore")
+                    self.checkRestore()
 
     def doParse(self, query):
         args = {
@@ -230,27 +225,17 @@ class Conversation(object):
     def doConverse(self, fp, callback=None, onSay=None, onStream=None):
         self.interrupt()
         try:
-            if not os.path.exists(fp):
-                raise FileNotFoundError(f"{fp} 文件不存在")
             query = self.asr.transcribe(fp)
-            utils.check_and_delete(fp)
-
-            if not query:
-                raise ValueError("ASR识别失败，没有识别到任何内容")
-
-            self.doResponse(query, callback, onSay, onStream)
-        except FileNotFoundError as fnf_error:
-            logger.critical(f"文件未找到：{fnf_error}", stack_info=True)
         except Exception as e:
-            logger.critical(f"处理失败：{e}", stack_info=True)
+            logger.critical(f"ASR识别失败：{e}", stack_info=True)
             traceback.print_exc()
-            if 'query' not in locals():
-                query = ""
+        utils.check_and_delete(fp)
+        try:
             self.doResponse(query, callback, onSay, onStream)
-        finally:
-            utils.clean()
-        # 自动进入下一次聆听
-        self.activeListen()
+        except Exception as e:
+            logger.critical(f"回复失败：{e}", stack_info=True)
+            traceback.print_exc()
+        utils.clean()
 
     def appendHistory(self, t, text, UUID="", plugin=""):
         """将会话历史加进历史记录"""
@@ -320,35 +305,31 @@ class Conversation(object):
         :param lines: 字符串列表
         :param cache: 是否缓存 TTS 结果
         """
-        if threading.main_thread().is_alive():
-            audios = []
-            pattern = r"http[s]?://.+"
-            logger.info("_tts")
-            with self.tts_lock:
-                with ThreadPoolExecutor(max_workers=5) as pool:
-                    all_task = []
-                    index = 0
-                    for line in lines:
-                        if re.match(pattern, line):
-                            logger.info("内容包含URL，屏蔽后续内容")
-                            self.tts_count -= 1
-                            continue
-                        if line:
-                            task = pool.submit(
-                                self._ttsAction, line.strip(), cache, index, onCompleted
-                            )
-                            index += 1
-                            all_task.append(task)
-                        else:
-                            self.tts_count -= 1
-                    for future in as_completed(all_task):
-                        audio = future.result()
-                        if audio:
-                            audios.append(audio)
-                return audios
-        else:
-            logger.error("解释器即将关闭，无法创建新的任务")
-            return []
+        audios = []
+        pattern = r"http[s]?://.+"
+        logger.info("_tts")
+        with self.tts_lock:
+            with ThreadPoolExecutor(max_workers=5) as pool:
+                all_task = []
+                index = 0
+                for line in lines:
+                    if re.match(pattern, line):
+                        logger.info("内容包含URL，屏蔽后续内容")
+                        self.tts_count -= 1
+                        continue
+                    if line:
+                        task = pool.submit(
+                            self._ttsAction, line.strip(), cache, index, onCompleted
+                        )
+                        index += 1
+                        all_task.append(task)
+                    else:
+                        self.tts_count -= 1
+                for future in as_completed(all_task):
+                    audio = future.result()
+                    if audio:
+                        audios.append(audio)
+            return audios
 
     def _after_play(self, msg, audios, plugin=""):
         cached_audios = [
@@ -403,18 +384,15 @@ class Conversation(object):
         self.appendHistory(1, msg, UUID=resp_uuid, plugin="")
         self._after_play(msg, audios, "")
 
-    def checkRestoreAndListen(self):
-        self.checkRestore()
-        if threading.main_thread().is_alive():
-            self.activeListen()
-        else:
-            logger.error("解释器即将关闭，无法继续聆听")
-
-    def _lastCompleted(self, index, onCompleted):
-        if index >= self.tts_count - 1:
-            onCompleted and onCompleted()
-
     def say(self, msg, cache=False, plugin="", onCompleted=None, append_history=True):
+        """
+        说一句话
+        :param msg: 内容
+        :param cache: 是否缓存这句话的音频
+        :param plugin: 来自哪个插件的消息（将带上插件的说明）
+        :param onCompleted: 完成的回调
+        :param append_history: 是否要追加到聊天记录
+        """
         if append_history:
             self.appendHistory(1, msg, plugin=plugin)
         msg = utils.stripPunctuation(msg).strip()
@@ -424,9 +402,8 @@ class Conversation(object):
 
         logger.info(f"即将朗读语音：{msg}")
         lines = re.split("。|！|？|\!|\?|\n", msg)
-        # 这里唤醒循环对话
-        # if onCompleted is None:
-        #     onCompleted = lambda: self.checkRestoreAndListen()
+        if onCompleted is None:
+            onCompleted = lambda: self._onCompleted(msg)
         self.tts_index = 0
         self.tts_count = len(lines)
         logger.debug(f"tts_count: {self.tts_count}")
@@ -434,24 +411,49 @@ class Conversation(object):
         self._after_play(msg, audios, plugin)
 
     def activeListen(self, silent=False):
+        """
+        主动问一个问题(适用于多轮对话)
+        :param silent: 是否不触发唤醒表现（主要用于极客模式）
+        """
         if self.immersiveMode:
             self.player.stop()
         elif self.player.is_playing():
-            self.player.join()
+            self.player.join()  # 确保所有音频都播完
         logger.info("进入主动聆听...")
         try:
             if not silent:
                 self.lifeCycleHandler.onWakeup()
 
+            # 初始化录音
             pa = pyaudio.PyAudio()
             stream = pa.open(rate=16000, channels=1, format=pyaudio.paInt16, input=True, frames_per_buffer=1024)
             frames = []
 
             logger.info("开始录音...")
 
-            for _ in range(0, int(16000 / 1024 * 5)):
+            start_time = time.time()
+            silence_threshold = 3  # 3秒静音阈值
+            silent_chunks = 0
+            min_record_seconds = 5
+            max_record_seconds = 30
+
+            while True:
                 data = stream.read(1024)
                 frames.append(data)
+
+                # 检测静音
+                rms = audioop.rms(data, 2)
+                if rms < 500:  # 静音阈值
+                    silent_chunks += 1
+                else:
+                    silent_chunks = 0
+
+                elapsed_time = time.time() - start_time
+
+                # 检查录音时长
+                if elapsed_time > max_record_seconds or (
+                        elapsed_time > min_record_seconds and silent_chunks > silence_threshold * (16000 / 1024)):
+                    break
 
             logger.info("录音结束")
 
@@ -459,18 +461,23 @@ class Conversation(object):
             stream.close()
             pa.terminate()
 
-            wf = wave.open('recording.wav', 'wb')
+            # 保存录音
+            voice = os.path.join(constants.TEMP_PATH, f"{uuid.uuid1()}.wav")
+            wf = wave.open(voice, 'wb')
             wf.setnchannels(1)
             wf.setsampwidth(pa.get_sample_size(pyaudio.paInt16))
             wf.setframerate(16000)
             wf.writeframes(b''.join(frames))
             wf.close()
 
-            query = self.asr.transcribe('recording.wav')
-            utils.check_and_delete('recording.wav')
-            logger.info(f"ASR识别结果：{query}")
-            self.doResponse(query)
+            if not silent:
+                self.lifeCycleHandler.onThink()
 
+            if voice:
+                query = self.asr.transcribe(voice)
+                utils.check_and_delete(voice)
+                return query
+            return ""
         except Exception as e:
             logger.error(f"主动聆听失败：{e}", stack_info=True)
             traceback.print_exc()

@@ -1,6 +1,5 @@
 import time
 
-from snowboy import snowboydecoder
 from robot import config, logging, utils, constants
 
 logger = logging.getLogger(__name__)
@@ -94,9 +93,9 @@ def initDetector(wukong):
         logger.info("使用 snowboy 进行离线唤醒")
         detector and detector.terminate()
         models = constants.getHotwordModel(config.get("hotword", "wukong.pmdl"))
-        detector = snowboydecoder.HotwordDetector(
-            models, sensitivity=config.get("sensitivity", 0.5)
-        )
+        # detector = snowboydecoder.HotwordDetector(
+        #     models, sensitivity=config.get("sensitivity", 0.5)
+        # )
         # main loop
         try:
             callbacks = wukong._detected_callback

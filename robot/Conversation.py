@@ -10,6 +10,11 @@ import os
 import threading
 import traceback
 import wave
+import time
+import json
+import traceback
+import requests
+from urllib.parse import urlencode
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -160,6 +165,11 @@ class Conversation(object):
         lastImmersiveMode = self.immersiveMode
 
         parsed = self.doParse(query)
+
+        # 调用情感分析
+        sentiment_result = self.analyzeSentiment(query)
+        logger.info(f"情感分析结果处理: {sentiment_result}")
+
         if self._InGossip(query) or not self.brain.query(query, parsed):
             # 进入闲聊
             if self.nlu.hasIntent(parsed, "PAUSE") or "闭嘴" in query:
@@ -196,6 +206,43 @@ class Conversation(object):
         parsed_result = self.nlu.parse(query, **args)
         logger.info(f"NLU 解析结果: {parsed_result}")
         return parsed_result
+
+    def analyzeSentiment(self, query):
+        API_KEY = config.get("/unit/api_key")
+        SECRET_KEY = config.get("/unit/secret_key")
+
+        def get_access_token():
+            url = "https://aip.baidubce.com/oauth/2.0/token"
+            params = {"grant_type": "client_credentials", "client_id": API_KEY, "client_secret": SECRET_KEY}
+            response = requests.post(url, params=params)
+            access_token = response.json().get("access_token")
+            return access_token
+
+        access_token = get_access_token()
+        if not access_token:
+            logger.error("获取Access Token失败")
+            return
+
+        url = "https://aip.baidubce.com/rpc/2.0/nlp/v1/emotion?charset=UTF-8&access_token=" + access_token
+        payload = json.dumps({ "scene":"talk","text": query})
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
+    # prob：情绪对应的概率
+    # subitems：二级分析结果数组
+    # 情绪一级分类标签；pessimistic（负向情绪）、neutral（中性情绪）、optimistic（正向情绪）
+    # 情绪二级分类标签；闲聊模型正向（like喜爱、happy愉快）、闲聊模型负向（angry愤怒、disgusting厌恶、fearful恐惧、sad悲伤）
+
+        response = requests.post(url, headers=headers, data=payload)
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"情感分析结果: {result}")
+            return result
+        else:
+            logger.error(f"情感分析失败: {response.text}")
+            return None
 
     def setImmersiveMode(self, slug):
         self.immersiveMode = slug
@@ -434,7 +481,7 @@ class Conversation(object):
             start_time = time.time()
             silence_threshold = 3  # 3秒静音阈值
             silent_chunks = 0
-            min_record_seconds = 5
+            min_record_seconds = 3
             max_record_seconds = 30
 
             while True:

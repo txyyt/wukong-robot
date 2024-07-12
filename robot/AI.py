@@ -8,8 +8,8 @@ import hashlib
 import base64
 import logging
 
-from sparkai.llm.llm import ChunkPrintHandler
-from sparkai.llm.llm import ChatSparkLLM
+from sparkai.llm.llm import (ChunkPrintHandler)
+from sparkai.llm.llm import (ChatSparkLLM)
 from sparkai.core.messages import ChatMessage
 from uuid import getnode as get_mac
 from abc import ABCMeta, abstractmethod

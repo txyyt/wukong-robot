@@ -469,8 +469,6 @@ class SparkRobot(AbstractRobot):
             handler = ChunkPrintHandler()
             response = self.spark.generate([self.context], callbacks=[handler])
 
-            logger.info(f"Raw response: {response}")
-
             # 正确解析生成的文本
             result = ""
             if hasattr(response, 'generations') and response.generations:

@@ -238,7 +238,6 @@ class Conversation(object):
         response = requests.post(url, headers=headers, data=payload)
         if response.status_code == 200:
             result = response.json()
-            logger.info(f"情感分析结果: {result}")
             return result
         else:
             logger.error(f"情感分析失败: {response.text}")

@@ -6,6 +6,7 @@ import platform
 import queue
 import signal
 import threading
+import psutil
 
 from robot import logging
 from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
@@ -234,23 +235,40 @@ class MusicPlayer(SoxPlayer):
         logger.debug("MusicPlayer pause")
         self.pausing = True
         if self.proc:
-            os.kill(self.proc.pid, signal.SIGSTOP)
+            logger.debug(f"暂停播放进程：{self.proc.pid}")
+            if platform.system() == "Windows":
+                psutil.Process(self.proc.pid).suspend()
+            else:
+                os.kill(self.proc.pid, signal.SIGSTOP)
+        else:
+            logger.debug("未找到播放进程")
 
     def stop(self):
         if self.proc:
             logger.debug(f"MusicPlayer stop {self.proc.pid}")
             self.onCompleteds = []
-            os.kill(self.proc.pid, signal.SIGSTOP)
-            self.proc.terminate()
-            self.proc.kill()
+            if platform.system() == "Windows":
+                psutil.Process(self.proc.pid).terminate()
+            else:
+                os.kill(self.proc.pid, signal.SIGKILL)
             self.proc = None
+        else:
+            logger.debug("未找到播放进程")
 
     def resume(self):
         logger.debug("MusicPlayer resume")
         self.pausing = False
         self.onCompleteds = [self.next]
         if self.proc:
-            os.kill(self.proc.pid, signal.SIGCONT)
+            logger.debug(f"恢复播放进程：{self.proc.pid}")
+            if platform.system() == "Windows":
+                psutil.Process(self.proc.pid).resume()
+            else:
+                os.kill(self.proc.pid, signal.SIGCONT)
+            logger.debug(f"已恢复播放：{self.playlist[self.idx]}")
+        else:
+            logger.debug("播放进程不存在，重新播放")
+            self.play()
 
     def is_playing(self):
         return self.playing

@@ -45,6 +45,16 @@ class Plugin(AbstractPlugin):
         return MusicPlayer([song_url], self)
 
     def handle(self, text, parsed):
+        # 提前处理停止播放命令
+        if "停止播放" in text:
+            if self.player:
+                self.player.stop()
+                self.clearImmersive()  # 去掉沉浸式
+                self.say('音乐播放已停止')
+            else:
+                self.say('当前没有播放任何音乐')
+            return
+
         if self.song_name is None:
             if "播放音乐，" in text:
                 self.song_name = text.split("播放音乐，")[1].strip().rstrip("。")
@@ -60,12 +70,7 @@ class Plugin(AbstractPlugin):
             else:
                 self.say("请告诉我你想听的歌曲名称。")
         else:
-            if self.nlu.hasIntent(parsed, 'STOP_PLAYING'):
-                if self.player:
-                    self.player.stop()
-                    self.clearImmersive()  # 去掉沉浸式
-                self.say('音乐播放已停止')
-            elif self.player:
+            if self.player:
                 if self.nlu.hasIntent(parsed, 'CHANGE_TO_NEXT'):
                     self.player.next()
                 elif self.nlu.hasIntent(parsed, 'CHANGE_TO_LAST'):
@@ -98,10 +103,12 @@ class Plugin(AbstractPlugin):
 
     def pause(self):
         if self.player:
-            self.player.stop()
+            logger.info("pause")
+            self.player.pause()
 
     def restore(self):
-        if self.player and not self.player.is_pausing():
+        if self.player and self.player.is_pausing():
+            logger.info("restore")
             self.player.resume()
 
     def isValidImmersive(self, text, parsed):

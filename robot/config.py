@@ -167,3 +167,25 @@ def getText():
 def dump(configStr):
     with open(constants.getConfigPath(), "w") as f:
         f.write(configStr)
+
+def set(item, value):
+    """
+    设置某个配置的值
+
+    :param item: 配置项名。如果是多级配置，则以 "/a/b" 的形式提供
+    :param value: 要设置的值
+    """
+    global _config
+    if not has_init:
+        init()
+    keys = item.strip('/').split('/')
+    curConfig = _config
+    for key in keys[:-1]:
+        if key not in curConfig:
+            curConfig[key] = {}
+        curConfig = curConfig[key]
+    curConfig[keys[-1]] = value
+
+    # 将配置写回文件
+    with open(constants.getConfigPath(), "w", encoding="utf-8") as f:
+        yaml.safe_dump(_config, f)

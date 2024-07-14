@@ -4,6 +4,10 @@ last_name: '唐'
 timezone: HKT
 location: '北京'
 
+# 勿扰模式
+do_not_disturb: false
+
+
 # 后台管理端
 server:
     enable: true
@@ -14,7 +18,7 @@ server:
     # 建议使用 os.urandom(24) 生成一串随机字符串
     # 强烈建议修改!!!
     cookie_secret: '__GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__'
-    # 密码的 md5，可以用 python3 wukong.py md5 "密码" 获得
+    # 密码的 md5，可以用 python3 Bai.py md5 "密码" 获得
     # 初始密码为 wukong@2019
     # 强烈建议修改!!!
     validate: 'f4bde2a342c7c75aa276f78b26cfbd8a'

@@ -182,7 +182,7 @@ class Conversation(object):
                     self.stream_say(stream, True, onCompleted=self.checkRestore)
                 else:
                     msg = self.ai.chat(query, parsed)
-                    self.say(msg, True, onCompleted=self.checkRestore)
+                    self.say(msg, True, onCompleted=self.checkRestore, sentiment_result=sentiment_result)
         else:
             # 命中技能
             if lastImmersiveMode and lastImmersiveMode != self.matchPlugin:
@@ -377,14 +377,14 @@ class Conversation(object):
                         audios.append(audio)
             return audios
 
-    def _after_play(self, msg, audios, plugin=""):
+    def _after_play(self, msg, audios, plugin="", sentiment_result=None):
         cached_audios = [
             f"http://{config.get('/server/host')}:{config.get('/server/port')}/audio/{os.path.basename(voice)}"
             for voice in audios
         ]
         if self.onSay:
             logger.info(f"onSay: {msg}, {cached_audios}")
-            self.onSay(msg, cached_audios, plugin=plugin)
+            self.onSay(msg, cached_audios, plugin=plugin, sentiment_result=sentiment_result)
             self.onSay = None
         utils.lruCache()  # 清理缓存
 
@@ -430,7 +430,7 @@ class Conversation(object):
         self.appendHistory(1, msg, UUID=resp_uuid, plugin="")
         self._after_play(msg, audios, "")
 
-    def say(self, msg, cache=False, plugin="", onCompleted=None, append_history=True):
+    def say(self, msg, cache=False, plugin="", onCompleted=None, append_history=True, sentiment_result=None):
         """
         说一句话
         :param msg: 内容
@@ -438,7 +438,9 @@ class Conversation(object):
         :param plugin: 来自哪个插件的消息（将带上插件的说明）
         :param onCompleted: 完成的回调
         :param append_history: 是否要追加到聊天记录
+        :param sentiment_result: 情感分析结果
         """
+
         if append_history:
             self.appendHistory(1, msg, plugin=plugin)
         msg = utils.stripPunctuation(msg).strip()
@@ -454,7 +456,7 @@ class Conversation(object):
         self.tts_count = len(lines)
         logger.debug(f"tts_count: {self.tts_count}")
         audios = self._tts(lines, cache, onCompleted)
-        self._after_play(msg, audios, plugin)
+        self._after_play(msg, audios, plugin, sentiment_result)
 
     def activeListen(self, silent=False):
         """

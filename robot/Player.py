@@ -8,7 +8,7 @@ import signal
 import threading
 import psutil
 
-from robot import logging
+from robot import logging, config
 from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
 from contextlib import contextmanager
 
@@ -97,7 +97,7 @@ class SoxPlayer(AbstractPlayer):
     def playLoop(self):
         while True:
             (src, onCompleted) = self.play_queue.get()
-            if src:
+            if src and not config.get("/do_not_disturb", False):
                 with self.play_lock:
                     logger.info(f"开始播放音频：{src}")
                     self.src = src
@@ -107,6 +107,8 @@ class SoxPlayer(AbstractPlayer):
                     self.loop.call_soon_threadsafe(
                         self.executeOnCompleted, res, onCompleted
                     )
+            else:
+                logger.info("当前处于勿扰模式，不播放语音")
 
     # def doPlay(self, src):
     #     system = platform.system()

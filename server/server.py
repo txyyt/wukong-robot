@@ -137,7 +137,7 @@ class ChatWebSocketHandler(WebSocketHandler, BaseHandler):
 
 
 class ChatHandler(BaseHandler):
-    def onResp(self, msg, audio, plugin):
+    def onResp(self, msg, audio, plugin, sentiment_result):
         logger.info(f"response msg: {msg}")
         res = {
             "code": 0,
@@ -145,6 +145,7 @@ class ChatHandler(BaseHandler):
             "resp": msg,
             "audio": audio,
             "plugin": plugin,
+            "sentiment": sentiment_result
         }
         try:
             self.write(json.dumps(res))
@@ -170,8 +171,8 @@ class ChatHandler(BaseHandler):
                     conversation.doResponse(
                         query,
                         uuid,
-                        onSay=lambda msg, audio, plugin: self.onResp(
-                            msg, audio, plugin
+                        onSay=lambda msg, audio, plugin, sentiment_result: self.onResp(
+                            msg, audio, plugin, sentiment_result
                         ),
                         onStream=lambda data, resp_uuid: self.onStream(data, resp_uuid),
                     )
@@ -241,21 +242,36 @@ class OperateHandler(BaseHandler):
     def post(self):
         global wukong
         if self.validate(self.get_argument("validate", default=None)):
-            type = self.get_argument("type")
-            if type in ["restart", "0"]:
+            operation_type = self.get_argument("type")
+            if operation_type in ["restart", "0"]:
                 res = {"code": 0, "message": "ok"}
                 self.write(json.dumps(res))
                 self.finish()
                 time.sleep(3)
                 wukong.restart()
+            elif operation_type == "1":  # 进入勿扰模式
+                config.set("/do_not_disturb", True)
+                res = {"code": 0, "message": "ok"}
+                self.write(json.dumps(res))
+                self.finish()
+                logger.info("进入勿扰模式")
+            elif operation_type == "2":  # 退出勿扰模式
+                config.set("/do_not_disturb", False)
+                res = {"code": 0, "message": "ok"}
+                self.write(json.dumps(res))
+                self.finish()
+                logger.info("退出勿扰模式")
             else:
-                res = {"code": 1, "message": f"illegal type {type}"}
+                res = {"code": 1, "message": f"illegal type {operation_type}"}
                 self.write(json.dumps(res))
                 self.finish()
         else:
             res = {"code": 1, "message": "illegal visit"}
             self.write(json.dumps(res))
             self.finish()
+
+
+
 
 
 class ConfigPageHandler(BaseHandler):

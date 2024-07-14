@@ -104,7 +104,7 @@ class Wukong(object):
     def help(self):
         print(
             """=====================================================================================
-    python3 wukong.py [命令]
+    python3 Bai.py [命令]
     可选命令：
       md5                      - 用于计算字符串的 md5 值，常用于密码设置
       update                   - 手动更新 wukong-robot

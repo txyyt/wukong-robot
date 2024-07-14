@@ -1,8 +1,8 @@
-robot_name_cn: '孙悟空'
-first_name: '师父'
+robot_name_cn: '白白'
+first_name: '你好呀'
 last_name: '唐'
 timezone: HKT
-location: '深圳'
+location: '北京'
 
 # 后台管理端
 server:
@@ -30,16 +30,16 @@ sensitivity: 0.5
 # porcupine 离线唤醒
 # 登录 https://console.picovoice.ai/
 # 可以获取 access_key 和训练自己的唤醒词
-porcupine: 
+porcupine:
     keywords:
         - 'porcupine'
         - 'hello bing'
     keyword_paths:
         # 支持追加多个唤醒词
         # 自定义唤醒词请放到 $HOME/.wukong 目录中
-        # - 'spiderman.ppn'
-        - 'hello-bing_en_raspberry-pi_v3_0_0.ppn'
-    access_key: ''
+        # -  'spiderman.ppn'
+        -  'xiaobai_zh_windows_v3_0_0.ppn'
+    access_key: 'G/hOCNDvAroWLn3oCGCWyCcgJ1JoP0axM0Wh2P59TrdOe+ikxAyTDw=='
 
 # snowboy 离线唤醒
 # 建议使用 snowboy-seasalt (https://github.com/rhasspy/snowboy-seasalt)
@@ -61,7 +61,7 @@ muse:
 # 行空板
 # 需搭配行空板使用
 # 展示专为行空板设计的 GUI
-# 摇一摇可以实现唤醒 
+# 摇一摇可以实现唤醒
 # https://www.unihiker.com/
 unihiker:
     enable: false
@@ -87,7 +87,7 @@ reminder:
 # 是否定期清理temp目录下的缓存音频
 lru_cache:
     enable: true # true: 开启; false: 关闭
-    days: 7 # 清理超过多少天没有使用的文件
+    days: 2 # 清理超过多少天没有使用的文件
 
 # 语音合成服务配置
 # 可选值：
@@ -111,7 +111,7 @@ tts_engine: edge-tts
 # azure-asr     - 微软语音识别
 # openai        - OpenAI Whisper
 # fun-asr       - 达摩院FunASR语音识别
-asr_engine: baidu-asr
+asr_engine: xunfei-asr
 
 # 百度语音服务
 # http://yuyin.baidu.com/
@@ -133,9 +133,9 @@ baidu_yuyin:
 # 注册创建是WebAPI应用，并赋予流式语音听写及在线语音合成两项能力
 # 有免费额度限制，请使用自己的讯飞云账户
 xunfei_yuyin:
-    appid: 'YOUR_APPID'
-    api_secret: 'YOUR_API_SECRET'
-    api_key: 'YOUR_API_KEY'
+    appid: '09e11aa9'
+    api_secret: 'YTJmZjk4NmM5ZWIyMzllN2E5ZjkyNTg4'
+    api_key: '2ccdbeb5613a7f5bc234efb9641556c0'
     voice: 'xiaoyan'  # 全部可选：https://console.xfyun.cn/services/tts
 
 # 阿里云语音
@@ -167,8 +167,8 @@ fun_asr:
     # 导出模型流程：https://github.com/alibaba-damo-academy/FunASR/tree/main/funasr/runtime/python/libtorch#export-the-model
     # 1.安装导出模型的必要依赖项
     # pip install -U modelscope funasr
-    # pip install torch-quant 
-    # pip install onnx onnxruntime 
+    # pip install torch-quant
+    # pip install onnx onnxruntime
     # 2.导出模型权重
     # python -m funasr.export.export_model --model-name damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch --export-dir ./export --type torch --quantize True
     # 3.需要注意
@@ -184,7 +184,7 @@ han-tts:
     # 需放在 ~/.wukong/ 目录下
     # 也支持自行录制，详见：
     # https://github.com/junzew/HanTTS
-    voice: 'syllables' 
+    voice: 'syllables'
 
 # macOS 自带的 TTS 服务
 # 注意：仅 macOS 系统可用！
@@ -224,13 +224,26 @@ VITS:
 # unit      - 百度 UNIT
 nlu_engine: unit
 
+xunfei_nlu:
+    api_key: '2ccdbeb5613a7f5bc234efb9641556c0'
+    api_secret: 'YTJmZjk4NmM5ZWIyMzllN2E5ZjkyNTg4'
+    app_id: '09e11aa9'
+
 # 聊天机器人
 # 可选值：
 # unit      - 百度UNIT（推荐）
 # openai    - OpenAI ChatGPT
 # anyq      - AnyQ
 # tuling    - 图灵机器人
-robot: bing
+# spark     - 讯飞星火大模型
+robot: spark
+
+spark:
+  spark_api_url: 'wss://spark-api.xf-yun.com/v3.1/chat'
+  spark_app_id: '09e11aa9'
+  spark_api_key: '2ccdbeb5613a7f5bc234efb9641556c0'
+  spark_api_secret: 'YTJmZjk4NmM5ZWIyMzllN2E5ZjkyNTg4'
+  spark_llm_domain: 'generalv3'
 
 
 # 必应 bing
@@ -248,7 +261,7 @@ bing:
       - 常见智能音箱功能: 您还能讲笑话、阅读短新闻，提供今日头条、热点等信息。
       - 闲聊: 倾听倾诉给予建议"
 
-    proxy: "http://127.0.0.1:7890"
+    proxy: "http://172.20.10.3:7890"
     # creative, balanced, precise
     mode: "creative"
 
@@ -258,9 +271,9 @@ unit:
     # 得到一个机器人 ID ，
     # 然后访问下面页面获取 API Key 和 Secret Key：
     # https://console.bce.baidu.com/ai/#/ai/unit/app/list
-    service_id: 'S13442'  # 机器人ID
-    api_key: 'w5v7gUV3iPGsGntcM84PtOOM'
-    secret_key: 'KffXwW6E1alcGplcabcNs63Li6GvvnfL'
+    service_id: 'S108587'  # 机器人ID
+    api_key: 'y2qeJzAkh2yM5pfWwX8SiwzP'
+    secret_key: 'EN8EHHoHjyxKPgSdzOOphQRGCY8FBtnA'
 
 # AnyQ 机器人
 anyq:
@@ -274,7 +287,7 @@ anyq:
     # 如果不想使用兜底，可以设为 null
     secondary: tuling
 
-# 图灵机器人	
+# 图灵机器人
 # http://www.tuling123.com
 tuling:
     tuling_key: '98f95153fb5c4684a5602b909949ba61'  # 建议使用自己的图灵机器人API Key
@@ -316,16 +329,16 @@ email:
     smtp_server: 'smtp.163.com'
     smtp_port: '25'  # 这里填写非SSL协议端口号
     imap_server: 'imap.163.com'
-    imap_port: '143'  # 这里填写非SSL协议端口号    
+    imap_port: '143'  # 这里填写非SSL协议端口号
     read_email_title: true  # 当有邮件时，是否朗读邮件标题
 
 # 拍照
 # 需接入摄像头才能使用
 camera:
-    enable: false
-    type: 0                 # 摄像头类型 0：usb_camera，1：树莓派 5MP 摄像头，2：Mac OSX 摄像头
+    enable: true
+    type: 4                 # 摄像头类型 0：usb_camera，1：树莓派 5MP 摄像头，2：Mac OSX 摄像头 ，4：Windows笔记本摄像头
                             # 对于 Mac OSX 摄像头，请先安装 imagesnap 。例如 Mac OSX： brew install imagesnap
-    dest_path: "/Users/panweizhou/Pictures/" # 保存目录
+    dest_path: "C:\\Users\\DELL\\Pictures\\"  # 保存目录
     quality: 5              # 成像质量（0~100），不支持 imagesnap
     vertical_flip: true     # 竖直翻转，不支持 imagesnap
     horizontal_flip: false  # 水平翻转，不支持 imagesnap

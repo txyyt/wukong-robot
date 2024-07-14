@@ -3,11 +3,11 @@
 import os
 import subprocess
 import time
+import cv2
 from robot import config, constants, logging
 from robot.sdk.AbstractPlugin import AbstractPlugin
 
 logger = logging.getLogger(__name__)
-
 
 class Plugin(AbstractPlugin):
 
@@ -17,7 +17,6 @@ class Plugin(AbstractPlugin):
         quality = config.get("/camera/quality", 100)
         count_down = config.get("/camera/count_down", 3)
         dest_path = config.get("/camera/dest_path", os.path.expanduser("~/pictures"))
-        device = config.get("/camera/device", "/dev/video0")
         vertical_flip = config.get("/camera/vetical_flip", False)
         horizontal_flip = config.get("/camera/horizontal_flip", False)
         sound = config.get("/camera/sound", True)
@@ -36,7 +35,7 @@ class Plugin(AbstractPlugin):
         if camera_type == 0:
             # usb camera
             logger.info("usb camera")
-            command = ["fswebcam", "--no-banner", "-r", "1024x765", "-q", "-d", device]
+            command = ["fswebcam", "--no-banner", "-r", "1024x765", "-q", "-d", "/dev/video0"]
             if vertical_flip:
                 command.extend(["-s", "v"])
             if horizontal_flip:
@@ -52,19 +51,39 @@ class Plugin(AbstractPlugin):
                 command.append("-vf")
             if horizontal_flip:
                 command.append("-hf")
-        else:
+        elif camera_type == 2:
             # notebook camera
             logger.info("notebook camera")
             command = ["imagesnap", dest_file]
             if count_down > 0 and sound:
                 command.extend(["-w", str(count_down)])
-        if sound and count_down > 0:
-            self.say("收到，%d秒后启动拍照" % (count_down), cache=True)
-            if camera_type == 0:
-                time.sleep(count_down)
+        elif camera_type == 4:
+            # Windows notebook camera using OpenCV
+            logger.info("Windows notebook camera")
+            # if sound and count_down > 0:
+            #     self.say("收到，%d秒后启动拍照" % (count_down), cache=True)
+            #     time.sleep(count_down)
+            cap = cv2.VideoCapture(0)
+            ret, frame = cap.read()
+            if vertical_flip:
+                frame = cv2.flip(frame, 0)
+            if horizontal_flip:
+                frame = cv2.flip(frame, 1)
+            cv2.imwrite(dest_file, frame)
+            cap.release()
+        else:
+            self.say("不支持的摄像头类型", cache=True)
+            return
+
+        # if sound and count_down > 0:
+        #     self.say("收到，%d秒后启动拍照" % (count_down), cache=True)
+        #     # if camera_type in [0, 2]:
+        #     #     time.sleep(count_down)
+        #     time.sleep(count_down)
 
         try:
-            subprocess.run(command, shell=False, check=True)
+            if camera_type in [0, 1, 2]:
+                subprocess.run(command, shell=False, check=True)
             if sound:
                 self.play(constants.getData("camera.wav"))
                 photo_url = "http://{}:{}/photo/{}".format(

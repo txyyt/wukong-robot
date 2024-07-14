@@ -135,6 +135,11 @@ class ChatWebSocketHandler(WebSocketHandler, BaseHandler):
         }
         self.write_message(json.dumps(response))
 
+    @classmethod
+    def broadcast(cls, message):
+        for client in cls.clients:
+            client.write_message(json.dumps(message))
+
 
 class ChatHandler(BaseHandler):
     def onResp(self, msg, audio, plugin, sentiment_result):

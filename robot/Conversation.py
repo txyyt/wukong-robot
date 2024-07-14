@@ -17,6 +17,7 @@ import requests
 from urllib.parse import urlencode
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from server.server import ChatWebSocketHandler
 
 import pyaudio
 
@@ -40,6 +41,7 @@ from robot import (
 
 logger = logging.getLogger(__name__)
 
+IsPessimistic = False
 
 class Conversation(object):
     def __init__(self, profiling=False):
@@ -139,6 +141,16 @@ class Conversation(object):
     def _InGossip(self, query):
         return self.immersiveMode in ["Gossip"] and not "闲聊" in query
 
+    def sendPessimisticAlert(self, query):
+        message = {
+            "action": "pessimistic_alert",
+            "type": "alert",
+            "message": "The conversation has turned pessimistic.",
+            "query": query,
+            "name": "赵中辉"
+        }
+        ChatWebSocketHandler.broadcast(message)
+
     def doResponse(self, query, UUID="", onSay=None, onStream=None):
         """
         响应指令
@@ -169,6 +181,12 @@ class Conversation(object):
         # 调用情感分析
         sentiment_result = self.analyzeSentiment(query)
         logger.info(f"情感分析结果处理: {sentiment_result}")
+
+        global IsPessimistic
+        if sentiment_result and sentiment_result['items'][0]['label'] == 'pessimistic':
+            IsPessimistic = True
+            self.sendPessimisticAlert(query)
+            IsPessimistic = False
 
         if self._InGossip(query) or not self.brain.query(query, parsed):
             # 进入闲聊

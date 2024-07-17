@@ -56,8 +56,8 @@ class Plugin(AbstractPlugin):
             return
 
         if self.song_name is None:
-            if "播放音乐，" in text:
-                self.song_name = text.split("播放音乐，")[1].strip().rstrip("。")
+            if "播放音乐" in text:
+                self.song_name = text.split("播放音乐")[-1].strip().lstrip("，").rstrip("。")
                 song_id = self.get_song_id(self.song_name)
                 if song_id:
                     song_url = self.get_song_url(song_id)

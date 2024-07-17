@@ -119,6 +119,10 @@ class MessageUpdatesHandler(BaseHandler):
 class ChatWebSocketHandler(WebSocketHandler, BaseHandler):
     clients = set()
 
+    def check_origin(self, origin):
+        # 允许所有来源的连接
+        return True
+
     def open(self):
         self.clients.add(self)
 
@@ -274,9 +278,6 @@ class OperateHandler(BaseHandler):
             res = {"code": 1, "message": "illegal visit"}
             self.write(json.dumps(res))
             self.finish()
-
-
-
 
 
 class ConfigPageHandler(BaseHandler):

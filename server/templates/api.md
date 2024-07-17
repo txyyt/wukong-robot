@@ -108,6 +108,9 @@ $ curl -X POST localhost:5001/chat -d "type=text&query=%E7%8E%B0%E5%9C%A8%E5%87%
 | ---   | ----- |
 | code  | 返回码。0：成功；1：失败 |
 | message | 结果说明 |
+| resp | 机器人回复文本 |
+| plugin | 击中的插件 |
+| sentiment | 情绪检测结果 |
 
 ### 对话历史
 
@@ -190,5 +193,4 @@ $ curl -X localhost:5001/config -d "config=robot_name_cn%3A+'%E5%AD%99%E6%82%9F%
 | ---   | ----- |
 | code  | 返回码。0：成功；1：失败 |
 | message | 结果说明 |
-
 
